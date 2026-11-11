@@ -1,0 +1,31 @@
+{
+  "$comment": "Copilot Studio tool definition (configuration artifact). Mirrors backend/app/agents/tools.py and connector-openapi.yaml.",
+  "name": "ListMyTickets",
+  "connector_operation": "ListMyTickets",
+  "description": "Lists the signed-in user's most recent IT tickets with their status.",
+  "requires_user_confirmation": false,
+  "inputs": {
+    "type": "object",
+    "additionalProperties": false,
+    "properties": {
+      "status": {
+        "type": "string",
+        "description": "Optional status filter."
+      }
+    }
+  },
+  "outputs": {
+    "type": "object",
+    "properties": {
+      "items": {
+        "type": "array",
+        "items": {
+          "type": "object"
+        }
+      },
+      "total": {
+        "type": "integer"
+      }
+    }
+  }
+}

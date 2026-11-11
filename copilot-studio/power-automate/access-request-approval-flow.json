@@ -1,0 +1,232 @@
+{
+  "$comment": "Power Automate cloud flow definition (Logic Apps workflow definition language) for 'IT Access Request - Approval'. Reference artifact: recreate in the designer or paste the actions into a flow inside the ITSupportAgent solution. Not an exported solution package and not validated against a live tenant by this repository.",
+  "properties": {
+    "displayName": "IT Access Request - Approval",
+    "connectionReferences": {
+      "shared_approvals": {
+        "connectionName": "shared-approvals",
+        "source": "Invoker",
+        "id": "/providers/Microsoft.PowerApps/apis/shared_approvals"
+      }
+    },
+    "definition": {
+      "$schema": "https://schema.management.azure.com/providers/Microsoft.Logic/schemas/2016-06-01/workflowdefinition.json#",
+      "contentVersion": "1.0.0.0",
+      "parameters": {
+        "$connections": {
+          "defaultValue": {},
+          "type": "Object"
+        },
+        "$authentication": {
+          "defaultValue": {},
+          "type": "SecureObject"
+        },
+        "CallbackClientId (env var)": {
+          "type": "String",
+          "defaultValue": "",
+          "metadata": {
+            "description": "App registration of the flow's service principal (has app role ITSupport.ApprovalCallback)"
+          }
+        },
+        "CallbackClientSecret (env var, Key Vault)": {
+          "type": "SecureString",
+          "defaultValue": "",
+          "metadata": {
+            "description": "Environment variable of type Secret backed by Azure Key Vault"
+          }
+        },
+        "TenantId (env var)": {
+          "type": "String",
+          "defaultValue": ""
+        },
+        "ApiAudience (env var)": {
+          "type": "String",
+          "defaultValue": "api://it-support-agent"
+        }
+      },
+      "triggers": {
+        "manual": {
+          "type": "Request",
+          "kind": "Http",
+          "inputs": {
+            "triggerAuthenticationType": "All",
+            "schema": {
+              "type": "object",
+              "required": [
+                "approvalId",
+                "requestNumber",
+                "approverUpn",
+                "callbackUrl",
+                "callbackToken"
+              ],
+              "properties": {
+                "approvalId": {
+                  "type": "string"
+                },
+                "accessRequestId": {
+                  "type": "string"
+                },
+                "requestNumber": {
+                  "type": "string"
+                },
+                "stage": {
+                  "type": "integer"
+                },
+                "requesterUpn": {
+                  "type": "string"
+                },
+                "requesterDisplayName": {
+                  "type": "string"
+                },
+                "approverUpn": {
+                  "type": "string"
+                },
+                "approverId": {
+                  "type": "string"
+                },
+                "applicationName": {
+                  "type": "string"
+                },
+                "role": {
+                  "type": "string"
+                },
+                "privileged": {
+                  "type": "boolean"
+                },
+                "durationDays": {
+                  "type": "integer"
+                },
+                "justification": {
+                  "type": "string"
+                },
+                "dueAt": {
+                  "type": "string"
+                },
+                "callbackUrl": {
+                  "type": "string"
+                },
+                "callbackToken": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "runtimeConfiguration": {
+            "secureData": {
+              "properties": [
+                "inputs",
+                "outputs"
+              ]
+            }
+          }
+        }
+      },
+      "actions": {
+        "Respond_202_Accepted": {
+          "type": "Response",
+          "kind": "Http",
+          "runAfter": {},
+          "inputs": {
+            "statusCode": 202,
+            "body": {
+              "status": "approval started"
+            }
+          }
+        },
+        "Start_and_wait_for_an_approval": {
+          "type": "OpenApiConnectionWebhook",
+          "runAfter": {
+            "Respond_202_Accepted": [
+              "Succeeded"
+            ]
+          },
+          "limit": {
+            "timeout": "P3D"
+          },
+          "inputs": {
+            "host": {
+              "connectionName": "shared_approvals",
+              "operationId": "StartAndWaitForAnApproval",
+              "apiId": "/providers/Microsoft.PowerApps/apis/shared_approvals"
+            },
+            "parameters": {
+              "approvalType": "Basic",
+              "WebhookApprovalCreationInput/title": "Access request @{triggerBody()?['requestNumber']}: @{triggerBody()?['role']} on @{triggerBody()?['applicationName']}",
+              "WebhookApprovalCreationInput/assignedTo": "@triggerBody()?['approverUpn']",
+              "WebhookApprovalCreationInput/details": "**Requester:** @{triggerBody()?['requesterUpn']}\n\n**Application / role:** @{triggerBody()?['applicationName']} / @{triggerBody()?['role']}@{if(triggerBody()?['privileged'], ' (PRIVILEGED)', '')}\n\n**Duration:** @{triggerBody()?['durationDays']} days\n\n**Justification:** @{triggerBody()?['justification']}\n\nStage @{triggerBody()?['stage']}. Approve only if the requester needs this access for their job.",
+              "WebhookApprovalCreationInput/enableNotifications": true,
+              "WebhookApprovalCreationInput/enableReassignment": false
+            },
+            "authentication": "@parameters('$authentication')"
+          },
+          "runtimeConfiguration": {
+            "secureData": {
+              "properties": [
+                "inputs"
+              ]
+            }
+          }
+        },
+        "Post_decision_to_backend": {
+          "type": "Http",
+          "runAfter": {
+            "Start_and_wait_for_an_approval": [
+              "Succeeded"
+            ]
+          },
+          "inputs": {
+            "method": "POST",
+            "uri": "@triggerBody()?['callbackUrl']",
+            "headers": {
+              "Content-Type": "application/json",
+              "X-Callback-Token": "@triggerBody()?['callbackToken']"
+            },
+            "body": {
+              "approval_id": "@triggerBody()?['approvalId']",
+              "decision": "@if(equals(body('Start_and_wait_for_an_approval')?['outcome'], 'Approve'), 'approve', 'reject')",
+              "responder_id": "@first(body('Start_and_wait_for_an_approval')?['responses'])?['responder']?['id']",
+              "responder_upn": "@first(body('Start_and_wait_for_an_approval')?['responses'])?['responder']?['userPrincipalName']",
+              "comment": "@first(body('Start_and_wait_for_an_approval')?['responses'])?['comments']"
+            },
+            "authentication": {
+              "type": "ActiveDirectoryOAuth",
+              "authority": "https://login.microsoftonline.com",
+              "tenant": "@parameters('TenantId (env var)')",
+              "audience": "@parameters('ApiAudience (env var)')",
+              "clientId": "@parameters('CallbackClientId (env var)')",
+              "secret": "@parameters('CallbackClientSecret (env var, Key Vault)')"
+            },
+            "retryPolicy": {
+              "type": "exponential",
+              "count": 4,
+              "interval": "PT10S",
+              "maximumInterval": "PT5M"
+            }
+          },
+          "runtimeConfiguration": {
+            "secureData": {
+              "properties": [
+                "inputs"
+              ]
+            }
+          }
+        },
+        "On_timeout_or_failure_-_notify_IT": {
+          "type": "Compose",
+          "runAfter": {
+            "Start_and_wait_for_an_approval": [
+              "TimedOut",
+              "Failed"
+            ]
+          },
+          "inputs": {
+            "note": "The backend expiry job (/api/v1/admin/maintenance/expire) marks the request expired and notifies the requester. Optionally add 'Post message in a chat or channel' here to alert the IT access team.",
+            "requestNumber": "@triggerBody()?['requestNumber']",
+            "runUrl": "@{concat('https://make.powerautomate.com/environments/', workflow()?['tags']?['environmentName'], '/flows/', workflow()?['name'], '/runs/', workflow()?['run']?['name'])}"
+          }
+        }
+      },
+      "outputs": {}
+    }
+  }
+}

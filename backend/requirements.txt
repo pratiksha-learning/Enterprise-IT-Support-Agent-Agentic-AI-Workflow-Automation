@@ -1,0 +1,20 @@
+# Runtime
+fastapi>=0.115,<1.0
+uvicorn[standard]>=0.30
+pydantic>=2.7,<3
+pydantic-settings>=2.3
+SQLAlchemy>=2.0,<3
+httpx>=0.27
+PyJWT[crypto]>=2.8
+numpy>=1.26
+pypdf>=4.0
+opentelemetry-api>=1.25
+opentelemetry-sdk>=1.25
+opentelemetry-instrumentation-fastapi>=0.46b0
+
+# Optional - uncomment for the corresponding adapters
+# psycopg[binary]>=3.1                       # DATABASE_URL=postgresql+psycopg://...
+# azure-monitor-opentelemetry-exporter>=1.0.0b25   # Application Insights export
+# opentelemetry-exporter-otlp-proto-http>=1.25     # OTLP collector export
+# azure-identity>=1.16 azure-keyvault-secrets>=4.8 # Key Vault secrets
+# python-docx>=1.1                           # .docx ingestion

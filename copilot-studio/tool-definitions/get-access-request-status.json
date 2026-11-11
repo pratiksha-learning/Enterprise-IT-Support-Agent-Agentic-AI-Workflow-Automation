@@ -1,0 +1,55 @@
+{
+  "$comment": "Copilot Studio tool definition (configuration artifact). Mirrors backend/app/agents/tools.py and connector-openapi.yaml.",
+  "name": "GetAccessRequestStatus",
+  "connector_operation": "GetAccessRequest",
+  "description": "Gets the status of one of the signed-in user's access requests by request number (ACC followed by 6 digits), including who it is waiting on. Use ListMyAccessRequests when no number is given.",
+  "requires_user_confirmation": false,
+  "inputs": {
+    "type": "object",
+    "additionalProperties": false,
+    "required": [
+      "ref"
+    ],
+    "properties": {
+      "ref": {
+        "type": "string",
+        "description": "Request number such as ACC100001."
+      }
+    }
+  },
+  "outputs": {
+    "type": "object",
+    "properties": {
+      "request_number": {
+        "type": "string"
+      },
+      "status": {
+        "type": "string",
+        "enum": [
+          "pending_approval",
+          "approved",
+          "provisioning",
+          "provisioned",
+          "provisioning_failed",
+          "rejected",
+          "cancelled",
+          "expired",
+          "failed"
+        ]
+      },
+      "current_stage": {
+        "type": "integer"
+      },
+      "required_stages": {
+        "type": "integer"
+      },
+      "access_expires_at": {
+        "type": [
+          "string",
+          "null"
+        ],
+        "format": "date-time"
+      }
+    }
+  }
+}

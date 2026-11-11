@@ -1,0 +1,299 @@
+# Power Platform custom connector definition for the IT Support Agent API.
+# Power Platform custom connectors require OpenAPI 2.0 (Swagger). Import via
+# make.powerapps.com -> Custom connectors -> New -> Import an OpenAPI file.
+# Only agent-safe operations are exposed: there are NO approval-decision operations here.
+swagger: "2.0"
+info:
+  title: IT Support Agent API
+  description: Tickets (mock ITSM) and access requests for the Copilot Studio IT Helpdesk Agent.
+  version: "1.0.0"
+  contact:
+    name: IT Platform Team
+host: itsupport-api.contoso.example   # replace with your App Service / API Management host
+basePath: /
+schemes:
+  - https
+consumes:
+  - application/json
+produces:
+  - application/json
+securityDefinitions:
+  oauth2_auth:
+    type: oauth2
+    flow: accessCode
+    authorizationUrl: https://login.microsoftonline.com/common/oauth2/authorize
+    tokenUrl: https://login.windows.net/common/oauth2/authorize
+    scopes: {}
+security:
+  - oauth2_auth: []
+x-ms-connector-metadata:
+  - propertyName: Website
+    propertyValue: https://github.com/pratiksha-learning/Enterprise-IT-Support-Agent-Agentic-AI-Workflow-Automation
+  - propertyName: Privacy policy
+    propertyValue: https://contoso.example/privacy
+  - propertyName: Categories
+    propertyValue: IT Operations
+parameters:
+  IdempotencyKey:
+    name: Idempotency-Key
+    in: header
+    type: string
+    x-ms-summary: Idempotency key
+    description: Unique key per logical request (8-128 chars). Set by the agent, e.g. conversation id + minute.
+    x-ms-visibility: advanced
+  TicketNumber:
+    name: ticket_number
+    in: path
+    required: true
+    type: string
+    pattern: "^[Ii][Nn][Cc]\\d{7}$"
+    x-ms-summary: Ticket number
+    description: Ticket number such as INC1001001.
+  AccessRef:
+    name: ref
+    in: path
+    required: true
+    type: string
+    x-ms-summary: Request number
+    description: Access request number such as ACC100001 (or request id).
+paths:
+  /api/v1/tickets:
+    post:
+      operationId: CreateTicket
+      summary: Create IT ticket
+      description: Creates an IT support ticket for the signed-in user. Confirm the summary with the user first.
+      x-ms-visibility: important
+      parameters:
+        - $ref: "#/parameters/IdempotencyKey"
+        - name: body
+          in: body
+          required: true
+          schema:
+            $ref: "#/definitions/TicketCreate"
+      responses:
+        "201":
+          description: Ticket created
+          schema:
+            $ref: "#/definitions/Ticket"
+        "401": {description: Not authenticated, schema: {$ref: "#/definitions/Error"}}
+        "422": {description: Validation failed, schema: {$ref: "#/definitions/Error"}}
+        "429": {description: Rate limited, schema: {$ref: "#/definitions/Error"}}
+    get:
+      operationId: ListMyTickets
+      summary: List my tickets
+      description: Lists the signed-in user's tickets (IT agents see all tickets).
+      parameters:
+        - name: status
+          in: query
+          required: false
+          type: string
+          enum: [new, in_progress, on_hold, resolved, closed, cancelled]
+          x-ms-summary: Status filter
+        - name: mine
+          in: query
+          required: false
+          type: boolean
+          default: true
+          x-ms-visibility: internal
+        - name: limit
+          in: query
+          required: false
+          type: integer
+          default: 10
+          x-ms-visibility: internal
+      responses:
+        "200":
+          description: Tickets
+          schema:
+            $ref: "#/definitions/TicketList"
+  /api/v1/tickets/{ticket_number}:
+    get:
+      operationId: GetTicket
+      summary: Get ticket details
+      description: Gets full details of a ticket the signed-in user is allowed to see.
+      parameters:
+        - $ref: "#/parameters/TicketNumber"
+      responses:
+        "200": {description: Ticket, schema: {$ref: "#/definitions/Ticket"}}
+        "404": {description: Not found or not visible, schema: {$ref: "#/definitions/Error"}}
+  /api/v1/tickets/{ticket_number}/status:
+    get:
+      operationId: GetTicketStatus
+      summary: Get ticket status
+      description: Returns the status and priority of a ticket.
+      x-ms-visibility: important
+      parameters:
+        - $ref: "#/parameters/TicketNumber"
+      responses:
+        "200": {description: Status, schema: {$ref: "#/definitions/TicketStatus"}}
+        "404": {description: Not found or not visible, schema: {$ref: "#/definitions/Error"}}
+  /api/v1/access/applications:
+    get:
+      operationId: ListApplications
+      summary: List requestable applications
+      description: Applications and roles that can be requested, with privileged flag and maximum duration.
+      responses:
+        "200":
+          description: Catalog
+          schema:
+            type: array
+            items:
+              $ref: "#/definitions/Application"
+  /api/v1/access-requests:
+    post:
+      operationId: SubmitAccessRequest
+      summary: Submit access request
+      description: Submits an access request for the signed-in user and starts manager approval. The agent cannot approve.
+      x-ms-visibility: important
+      parameters:
+        - $ref: "#/parameters/IdempotencyKey"
+        - name: body
+          in: body
+          required: true
+          schema:
+            $ref: "#/definitions/AccessRequestCreate"
+      responses:
+        "201": {description: Submitted, schema: {$ref: "#/definitions/AccessRequest"}}
+        "409": {description: Duplicate active request, schema: {$ref: "#/definitions/Error"}}
+        "422": {description: Validation or policy failure, schema: {$ref: "#/definitions/Error"}}
+        "503": {description: Identity provider or approval service unavailable, schema: {$ref: "#/definitions/Error"}}
+    get:
+      operationId: ListMyAccessRequests
+      summary: List my access requests
+      parameters:
+        - name: mine
+          in: query
+          required: false
+          type: boolean
+          default: true
+          x-ms-visibility: internal
+        - name: limit
+          in: query
+          required: false
+          type: integer
+          default: 10
+          x-ms-visibility: internal
+      responses:
+        "200":
+          description: Requests
+          schema:
+            $ref: "#/definitions/AccessRequestList"
+  /api/v1/access-requests/{ref}:
+    get:
+      operationId: GetAccessRequest
+      summary: Get access request status
+      parameters:
+        - $ref: "#/parameters/AccessRef"
+      responses:
+        "200": {description: Request, schema: {$ref: "#/definitions/AccessRequest"}}
+        "404": {description: Not found or not visible, schema: {$ref: "#/definitions/Error"}}
+  /api/v1/access-requests/{ref}/cancel:
+    post:
+      operationId: CancelAccessRequest
+      summary: Cancel my pending access request
+      parameters:
+        - $ref: "#/parameters/AccessRef"
+      responses:
+        "200": {description: Cancelled, schema: {$ref: "#/definitions/AccessRequest"}}
+        "409": {description: Not pending, schema: {$ref: "#/definitions/Error"}}
+definitions:
+  Error:
+    type: object
+    properties:
+      error:
+        type: object
+        properties:
+          code: {type: string, x-ms-summary: Error code}
+          message: {type: string, x-ms-summary: Message}
+          correlation_id: {type: string, x-ms-summary: Correlation ID}
+          details: {type: array, items: {type: object}}
+  TicketCreate:
+    type: object
+    required: [title, description]
+    properties:
+      title: {type: string, minLength: 5, maxLength: 120, x-ms-summary: Title, description: Short summary of the problem}
+      description: {type: string, minLength: 10, maxLength: 4000, x-ms-summary: Description, description: "Symptoms, errors and steps tried. No secrets."}
+      category: {type: string, enum: [hardware, software, network, access, account, other], default: other, x-ms-summary: Category}
+      priority: {type: string, enum: [P1, P2, P3, P4], default: P3, x-ms-summary: Priority}
+  Ticket:
+    type: object
+    properties:
+      ticket_number: {type: string, x-ms-summary: Ticket number}
+      title: {type: string}
+      description: {type: string}
+      category: {type: string}
+      priority: {type: string}
+      status: {type: string, x-ms-summary: Status}
+      requester_id: {type: string}
+      requester_upn: {type: string}
+      assigned_to: {type: string}
+      source: {type: string}
+      created_at: {type: string, format: date-time}
+      updated_at: {type: string, format: date-time}
+  TicketStatus:
+    type: object
+    properties:
+      ticket_number: {type: string}
+      status: {type: string}
+      priority: {type: string}
+      updated_at: {type: string, format: date-time}
+  TicketList:
+    type: object
+    properties:
+      items: {type: array, items: {$ref: "#/definitions/Ticket"}}
+      total: {type: integer}
+  ApplicationRole:
+    type: object
+    properties:
+      name: {type: string}
+      description: {type: string}
+      level: {type: integer}
+      privileged: {type: boolean}
+      max_duration_days: {type: integer}
+  Application:
+    type: object
+    properties:
+      id: {type: string}
+      name: {type: string}
+      description: {type: string}
+      max_duration_days: {type: integer}
+      roles: {type: array, items: {$ref: "#/definitions/ApplicationRole"}}
+  AccessRequestCreate:
+    type: object
+    required: [application_id, role, duration_days, justification]
+    properties:
+      application_id: {type: string, pattern: "^[a-z0-9-]+$", x-ms-summary: Application id}
+      role: {type: string, pattern: "^[a-z0-9_]+$", x-ms-summary: Role}
+      duration_days: {type: integer, minimum: 1, maximum: 365, x-ms-summary: Duration (days)}
+      justification: {type: string, minLength: 20, maxLength: 1000, x-ms-summary: Business justification}
+  Approval:
+    type: object
+    properties:
+      id: {type: string}
+      stage: {type: integer}
+      approver_upn: {type: string, x-ms-summary: Approver}
+      approver_reason: {type: string}
+      status: {type: string}
+      due_at: {type: string, format: date-time}
+      decided_at: {type: string, format: date-time}
+  AccessRequest:
+    type: object
+    properties:
+      id: {type: string}
+      request_number: {type: string, x-ms-summary: Request number}
+      application_id: {type: string}
+      role: {type: string}
+      duration_days: {type: integer}
+      status: {type: string, x-ms-summary: Status}
+      privileged: {type: boolean}
+      required_stages: {type: integer}
+      current_stage: {type: integer}
+      failure_reason: {type: string}
+      access_expires_at: {type: string, format: date-time}
+      created_at: {type: string, format: date-time}
+      approvals: {type: array, items: {$ref: "#/definitions/Approval"}}
+  AccessRequestList:
+    type: object
+    properties:
+      items: {type: array, items: {$ref: "#/definitions/AccessRequest"}}
+      total: {type: integer}

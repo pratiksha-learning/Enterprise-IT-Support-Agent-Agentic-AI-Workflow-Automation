@@ -1,0 +1,91 @@
+{
+  "$comment": "Copilot Studio tool definition (configuration artifact). Mirrors backend/app/agents/tools.py and connector-openapi.yaml.",
+  "name": "SubmitAccessRequest",
+  "connector_operation": "SubmitAccessRequest",
+  "description": "Submits an application access request for the signed-in user and starts manager approval. Use only after collecting application, role, duration and business justification and after the user confirmed the summary. Cannot approve anything and cannot request access for another person.",
+  "requires_user_confirmation": true,
+  "inputs": {
+    "type": "object",
+    "additionalProperties": false,
+    "required": [
+      "application_id",
+      "role",
+      "duration_days",
+      "justification"
+    ],
+    "properties": {
+      "application_id": {
+        "type": "string",
+        "pattern": "^[a-z0-9-]+$",
+        "description": "Application id from ListRequestableApplications, e.g. salesforce-crm."
+      },
+      "role": {
+        "type": "string",
+        "pattern": "^[a-z0-9_]+$",
+        "description": "Role name from ListRequestableApplications. Prefer the least privileged role that meets the need."
+      },
+      "duration_days": {
+        "type": "integer",
+        "minimum": 1,
+        "maximum": 365,
+        "description": "How many days access is needed; must not exceed the role's max_duration_days."
+      },
+      "justification": {
+        "type": "string",
+        "minLength": 20,
+        "maxLength": 1000,
+        "description": "Business reason the approver will read."
+      },
+      "Idempotency-Key": {
+        "type": "string",
+        "x-copilot-value": "Concatenate(System.Conversation.Id, \"-\", Text(Now(), \"yyyyMMddHHmm\"))",
+        "description": "Set by the agent, not asked from the user."
+      }
+    }
+  },
+  "outputs": {
+    "type": "object",
+    "properties": {
+      "request_number": {
+        "type": "string"
+      },
+      "status": {
+        "type": "string"
+      },
+      "privileged": {
+        "type": "boolean"
+      },
+      "required_stages": {
+        "type": "integer"
+      },
+      "approvals": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "properties": {
+            "approver_upn": {
+              "type": "string"
+            },
+            "stage": {
+              "type": "integer"
+            },
+            "status": {
+              "type": "string"
+            }
+          }
+        }
+      }
+    }
+  },
+  "error_codes": [
+    "UNKNOWN_APPLICATION",
+    "UNKNOWN_ROLE",
+    "DURATION_EXCEEDS_POLICY",
+    "DUPLICATE_REQUEST",
+    "IDEMPOTENCY_KEY_REUSED",
+    "NO_ELIGIBLE_APPROVER",
+    "IDENTITY_PROVIDER_UNAVAILABLE",
+    "APPROVAL_SERVICE_UNAVAILABLE",
+    "RATE_LIMITED"
+  ]
+}

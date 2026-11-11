@@ -1,0 +1,53 @@
+{
+  "_comment": "Requestable applications. Each role maps to exactly ONE security group (least privilege). Privileged roles require a second approval stage by the application owner and have shorter maximum durations. group_id values are placeholders; in a real tenant they are Entra ID group object IDs.",
+  "applications": [
+    {
+      "id": "salesforce-crm", "name": "Salesforce CRM", "owner_id": "u-dave", "max_duration_days": 180,
+      "description": "Customer relationship management platform.",
+      "aliases": ["salesforce", "sfdc", "crm"],
+      "roles": [
+        {"name": "read_only", "description": "View accounts and opportunities", "level": 1, "privileged": false, "group_id": "sg-sfdc-read", "max_duration_days": 180},
+        {"name": "sales_user", "description": "Create and edit opportunities", "level": 2, "privileged": false, "group_id": "sg-sfdc-sales", "max_duration_days": 180},
+        {"name": "admin", "description": "Configure the Salesforce org", "level": 3, "privileged": true, "group_id": "sg-sfdc-admin", "max_duration_days": 30}
+      ]
+    },
+    {
+      "id": "github-enterprise", "name": "GitHub Enterprise", "owner_id": "u-dave", "max_duration_days": 365,
+      "description": "Source control and CI/CD.",
+      "aliases": ["github", "git hub", "gh", "source control"],
+      "roles": [
+        {"name": "reader", "description": "Read repositories", "level": 1, "privileged": false, "group_id": "sg-gh-read", "max_duration_days": 365},
+        {"name": "contributor", "description": "Push to non-protected branches", "level": 2, "privileged": false, "group_id": "sg-gh-write", "max_duration_days": 365},
+        {"name": "maintainer", "description": "Manage repository settings", "level": 3, "privileged": true, "group_id": "sg-gh-maintain", "max_duration_days": 90}
+      ]
+    },
+    {
+      "id": "finance-sharepoint", "name": "Finance SharePoint Site", "owner_id": "u-erin", "max_duration_days": 180,
+      "description": "Finance team documents and reports.",
+      "aliases": ["finance sharepoint", "finance site", "finance portal", "sharepoint finance"],
+      "roles": [
+        {"name": "visitor", "description": "Read documents", "level": 1, "privileged": false, "group_id": "sg-fin-sp-visitors", "max_duration_days": 180},
+        {"name": "member", "description": "Edit documents", "level": 2, "privileged": false, "group_id": "sg-fin-sp-members", "max_duration_days": 180},
+        {"name": "owner", "description": "Manage site permissions", "level": 3, "privileged": true, "group_id": "sg-fin-sp-owners", "max_duration_days": 30}
+      ]
+    },
+    {
+      "id": "jira-cloud", "name": "Jira Cloud", "owner_id": "u-carol", "max_duration_days": 365,
+      "description": "Work tracking.",
+      "aliases": ["jira", "atlassian"],
+      "roles": [
+        {"name": "user", "description": "Work on issues", "level": 1, "privileged": false, "group_id": "sg-jira-users", "max_duration_days": 365},
+        {"name": "project_admin", "description": "Administer a project", "level": 3, "privileged": true, "group_id": "sg-jira-padmin", "max_duration_days": 90}
+      ]
+    },
+    {
+      "id": "aws-prod-console", "name": "AWS Production Console", "owner_id": "u-dave", "max_duration_days": 14,
+      "description": "Production cloud environment (break-glass style, time-bound).",
+      "aliases": ["aws", "aws prod", "amazon web services", "aws console"],
+      "roles": [
+        {"name": "read_only", "description": "View production resources", "level": 1, "privileged": true, "group_id": "sg-aws-prod-ro", "max_duration_days": 14},
+        {"name": "power_user", "description": "Change production resources", "level": 3, "privileged": true, "group_id": "sg-aws-prod-power", "max_duration_days": 7}
+      ]
+    }
+  ]
+}

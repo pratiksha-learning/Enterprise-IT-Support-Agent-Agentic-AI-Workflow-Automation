@@ -1,0 +1,50 @@
+# Local stack. Usage (from repo root):
+#   docker compose -f infrastructure/docker-compose.yml up --build                 # SQLite, mock mode
+#   docker compose -f infrastructure/docker-compose.yml --profile postgres up --build
+#   docker compose -f infrastructure/docker-compose.yml --profile observability up --build   # + Jaeger UI :16686
+name: it-support-agent
+services:
+  backend:
+    build:
+      context: ..
+      dockerfile: infrastructure/docker/backend.Dockerfile
+    env_file:
+      - path: ../.env
+        required: false
+    environment:
+      AUTH_MODE: mock
+      CORS_ORIGINS: http://localhost:8080
+      # set to postgresql+psycopg://itsupport:${POSTGRES_PASSWORD:-change-me-local}@postgres:5432/itsupport with the postgres profile
+      DATABASE_URL: ${DATABASE_URL:-sqlite:////srv/backend/data/itsupport.db}
+      OTEL_EXPORTER_OTLP_ENDPOINT: ${OTEL_EXPORTER_OTLP_ENDPOINT:-}
+    ports:
+      - "8000:8000"
+    volumes:
+      - backend-data:/srv/backend/data
+  frontend:
+    build:
+      context: ..
+      dockerfile: infrastructure/docker/frontend.Dockerfile
+    depends_on: [backend]
+    ports:
+      - "8080:8080"
+  postgres:
+    profiles: [postgres]
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: itsupport
+      POSTGRES_USER: itsupport
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-change-me-local}
+    volumes:
+      - pg-data:/var/lib/postgresql/data
+  jaeger:
+    profiles: [observability]
+    image: jaegertracing/all-in-one:1.62.0
+    environment:
+      COLLECTOR_OTLP_ENABLED: "true"
+    ports:
+      - "16686:16686"
+      - "4318:4318"
+volumes:
+  backend-data:
+  pg-data:
